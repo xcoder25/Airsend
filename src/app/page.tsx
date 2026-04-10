@@ -125,7 +125,7 @@ export default function WalletDashboard() {
                transition={{ delay: 0.4 }}
                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             >
-              <h1 style={{ fontSize: '36px', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px' }}>AirSend</h1>
+              <h1 style={{ fontSize: '36px', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px' }}>Orbit</h1>
               <p style={{ fontSize: '13px', fontWeight: '700', opacity: 0.8, letterSpacing: '3px', textTransform: 'uppercase' }}>Secure Launch</p>
             </motion.div>
 
@@ -402,7 +402,9 @@ export default function WalletDashboard() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', padding: '0 8px' }}>
             <h3 style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px' }}>Recent</h3>
-            <span style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', letterSpacing: '0.5px' }}>View Ledger</span>
+            <Link href="/finance" style={{ textDecoration: 'none' }}>
+              <span style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: '700', letterSpacing: '0.5px', cursor: 'pointer' }}>View Ledger</span>
+            </Link>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(255,255,255,0.02)', borderRadius: '28px', padding: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
