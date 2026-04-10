@@ -12,11 +12,13 @@ import {
 import Link from 'next/link';
 
 import VoiceBankingModal from '@/components/VoiceBankingModal';
+import { NearbyAirSend } from '@/components/NearbyAirSend';
 
 export default function WalletDashboard() {
   const router = useRouter();
   const [showBalance, setShowBalance] = useState(true);
   const [showVoice, setShowVoice] = useState(false);
+  const [showNearby, setShowNearby] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const balance = 125430.50;
@@ -364,7 +366,7 @@ export default function WalletDashboard() {
         </div>
 
         {/* Orbit Core - AirSend */}
-        <Link href="/nearby" style={{ textDecoration: 'none' }}>
+        <div onClick={() => setShowNearby(true)} style={{ cursor: 'pointer' }}>
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -396,7 +398,7 @@ export default function WalletDashboard() {
               <ChevronRight size={24} color="var(--accent)" />
             </motion.div>
           </motion.div>
-        </Link>
+        </div>
 
         {/* Minimal Transactions */}
         <div>
@@ -503,6 +505,7 @@ export default function WalletDashboard() {
       </div>
 
       <VoiceBankingModal isOpen={showVoice} onClose={() => setShowVoice(false)} />
+      <NearbyAirSend open={showNearby} onOpenChange={setShowNearby} currentBalance={balance} />
     </div>
   );
 }

@@ -18,7 +18,7 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const recognizerRef = useRef<GestureRecognizer | null>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
   
   useEffect(() => {
     let active = true;
