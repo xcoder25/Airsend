@@ -188,22 +188,60 @@ export function NearbyAirSend({ open, onOpenChange, currentBalance }: NearbyAirS
   // ── Voice AI Handler ──
   const startVoiceCommand = () => {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRec) { toast({ variant: 'destructive', title: 'Not Supported' }); return; }
+    if (!SpeechRec) { 
+      toast({ variant: 'destructive', title: 'Not Supported', description: 'Voice controls not available on this browser.' }); 
+      return; 
+    }
+    
     const recognition = new SpeechRec();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript.toLowerCase();
-      const numMatch = transcript.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[\s-]?thousand\b|\b\d+\b/g);
-      if (numMatch) {
-         let parsedAmount = parseInt(numMatch[0].replace(/\D/g, ''));
-         if (transcript.includes('thousand') && parsedAmount < 1000) parsedAmount *= 1000;
-         setAmount(parsedAmount.toString());
-         toast({ title: 'Voice AI', description: `Amount set to ₦${parsedAmount}` });
-      }
-      setIsListening(false);
+    
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast({ title: 'Aura Voice', description: 'Listening for transfer command...' });
     };
+    
+    recognition.onresult = async (e: any) => {
+      const transcript = e.results[0][0].transcript;
+      setIsListening(false);
+      
+      try {
+        const res = await fetch('/api/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript })
+        });
+        
+        if (!res.ok) throw new Error('Gemini offline');
+        
+        const data = await res.json();
+        if (data.amount) {
+           setAmount(data.amount.toString());
+           toast({ title: 'OmniAI Parsed', description: `Set amount to ₦${data.amount.toLocaleString()}` });
+        }
+        if (data.recipient && role === 'sender') {
+           // Attempt to auto-match recipient by name
+           const match = availableReceivers.find(r => 
+             r.displayName.toLowerCase().includes(data.recipient.toLowerCase())
+           );
+           if (match) {
+             setSelectedReceivers([match]);
+             setSenderState('uwb_lock');
+             toast({ title: 'Target Locked', description: `Matched with ${match.displayName}` });
+           }
+        }
+      } catch (err) {
+        // Fallback to local regex if API fails or No Key
+        const numMatch = transcript.toLowerCase().match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)[\s-]?thousand\b|\b\d+\b/g);
+        if (numMatch) {
+           let val = parseInt(numMatch[0].replace(/\D/g, ''));
+           if (transcript.includes('thousand') && val < 1000) val *= 1000;
+           setAmount(val.toString());
+        }
+      }
+    };
+    
     recognition.onerror = () => setIsListening(false);
     recognition.onend = () => setIsListening(false);
     recognition.start();
@@ -463,11 +501,22 @@ export function NearbyAirSend({ open, onOpenChange, currentBalance }: NearbyAirS
     
     unsubs.push(onSnapshot(query(collection(firestore, 'air_receivers')), (snap) => {
       let recs: any[] = [];
-      snap.forEach(d => { if (d.id !== user.uid) recs.push(d.data()); });
+      snap.forEach(d => { 
+        if (d.id !== user.uid) {
+          const data = d.data();
+          // Simulate UWB proximity score logic (virtual distance in cm)
+          recs.push({
+            ...data,
+            proximity: Math.floor(Math.random() * 40) + 10 
+          });
+        }
+      });
       setAvailableReceivers(recs);
       if (recs.length > 0 && senderState === 'searching') {
-        setSelectedReceivers([recs[0]]);
+        const sorted = [...recs].sort((a, b) => a.proximity - b.proximity);
+        setSelectedReceivers([sorted[0]]);
         setSenderState('uwb_lock');
+        if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
       }
     }));
 
@@ -514,7 +563,6 @@ export function NearbyAirSend({ open, onOpenChange, currentBalance }: NearbyAirS
   useEffect(() => {
     if (role !== 'recipient' || !user || !firestore) return;
     const pRef = doc(firestore, 'air_receivers', user.uid);
-    setDoc(pRef, { uid: user.uid, displayName: user.displayName || 'Ibom User', status: 'idle', timestamp: serverTimestamp() });
 
     const unsubPresence = onSnapshot(pRef, (snap) => {
        if (snap.data()?.status === 'synced') {
@@ -602,7 +650,7 @@ export function NearbyAirSend({ open, onOpenChange, currentBalance }: NearbyAirS
           <span className="font-black uppercase tracking-widest text-xs z-10 text-slate-100">Send Drop</span>
           <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
         </Button>
-        <Button variant="outline" onClick={() => setRole('recipient')} className="h-32 flex flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-emerald-500/20 shadow-lg relative overflow-hidden group">
+        <Button variant="outline" onClick={() => { setRole('recipient'); setRecipientState('waiting'); }} className="h-32 flex flex-col items-center justify-center gap-3 rounded-[2rem] border-2 border-emerald-500/20 shadow-lg relative overflow-hidden group">
           <div className="size-12 rounded-full bg-emerald-500 text-white flex items-center justify-center z-10 group-hover:scale-110 transition-transform"><ArrowDownLeft className="size-6" /></div>
           <span className="font-black uppercase tracking-widest text-xs z-10 text-slate-100">Receive</span>
           <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -808,12 +856,22 @@ export function NearbyAirSend({ open, onOpenChange, currentBalance }: NearbyAirS
           
           {renderCameraView()}
 
-          <div className={`mt-8 flex items-center gap-3 px-6 py-4 rounded-3xl border transition-all duration-500 shrink-0 ${isSynced ? 'bg-emerald-500 text-white border-white/20 shadow-lg shadow-emerald-500/20' : 'bg-white/5 text-slate-300 border-white/10'}`}>
-            {isSynced ? <ShieldCheck className="size-5 animate-bounce" /> : <Wifi className="size-5 text-emerald-500 animate-pulse" />}
-            <p className="text-[10px] font-black uppercase tracking-widest leading-none">
-                {isSynced ? 'Target Synchronized' : 'Visible to nearby senders'}
-            </p>
-          </div>
+          {!isSynced ? (
+            <Button onClick={() => {
+              const pRef = doc(firestore!, 'air_receivers', user?.uid!);
+              setDoc(pRef, { uid: user?.uid, displayName: user?.displayName || 'User', status: 'idle', timestamp: serverTimestamp() });
+              toast({ title: 'Aura Check-in', description: 'Your device is now visible to nearby peers.' });
+            }} className="mt-8 h-14 px-8 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
+              Secure Check-in
+            </Button>
+          ) : (
+            <div className={`mt-8 flex items-center gap-3 px-6 py-4 rounded-3xl border transition-all duration-500 shrink-0 bg-emerald-500 text-white border-white/20 shadow-lg shadow-emerald-500/20`}>
+              <ShieldCheck className="size-5 animate-bounce" />
+              <p className="text-[10px] font-black uppercase tracking-widest leading-none">
+                  Target Synchronized
+              </p>
+            </div>
+          )}
         </div>
       );
       case 'receiving': return (
