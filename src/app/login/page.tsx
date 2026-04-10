@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // For demo purposes, just redirect to dashboard
+    localStorage.setItem('orbit_auth', 'true');
     router.push('/');
   };
 
