@@ -322,13 +322,9 @@ export default function AirSendDemo() {
               transition={{ delay: 0.5 }}
             >
               {role === 'sender' ? (
-                <button 
-                  className="glass"
-                  onClick={() => setStage('request')}
-                  style={{ padding: '12px 24px', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}
-                >
-                  Force Simulate Request
-                </button>
+                <div style={{ padding: '12px 24px', color: 'var(--text-muted)', fontSize: '12px', fontStyle: 'italic' }}>
+                  Awaiting request via local network sync...
+                </div>
               ) : (
                 <button 
                   className="glass"
@@ -357,13 +353,6 @@ export default function AirSendDemo() {
             <h2 style={{ fontSize: '1.6rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Request Broadcasted</h2>
             <p style={{ color: 'var(--text-muted)', margin: '1rem 0 2rem' }}>Real-time synchronization established. Waiting for John Doe to throw the transfer...</p>
             
-            <button 
-              className="glass"
-              onClick={() => setStage('success')}
-              style={{ padding: '10px 20px', opacity: 0.3, fontSize: '11px' }}
-            >
-              (Force Simulation Success)
-            </button>
           </motion.div>
         )}
 

@@ -44,12 +44,8 @@ export default function VoiceBankingModal({ isOpen, onClose }: VoiceBankingProps
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
-        // Fallback if browser doesn't support Speech API
-        setTimeout(() => {
-          const fallbackText = "Send 5000 to Damilola";
-          setTranscript(fallbackText);
-          processViaGemini(fallbackText);
-        }, 3000);
+        setTranscript("Speech Recognition not supported in this browser.");
+        setStep(-1);
         return;
       }
 
@@ -67,17 +63,14 @@ export default function VoiceBankingModal({ isOpen, onClose }: VoiceBankingProps
       };
 
       recognition.onend = () => {
-        // Find the latest displayed text or use state
         const finalElement = document.getElementById('voice-transcript');
         const finalText = finalElement ? finalElement.innerText : transcript;
         
         if (finalText && finalText.length > 3) {
           processViaGemini(finalText);
         } else {
-          // Empty speech fallback for demo stability
-          const demoFallback = "Send 5000 dollars to Damilola";
-          setTranscript(demoFallback);
-          processViaGemini(demoFallback);
+          setTranscript("No clear intent detected.");
+          setStep(-1);
         }
       };
 

@@ -13,16 +13,10 @@ export async function POST(req: Request) {
 
     const genAI = getGeminiClient();
     
-    // Fallback Mock for Hackathon Demo if no API KEY is detected in environment
+    // Require valid API key for realtime engine processing
     if (!genAI) {
-      console.warn("No GEMINI_API_KEY detected. Using mock fallback parsing.");
-      // Small artificial delay to mimic AI response time for presentation
-      await new Promise(r => setTimeout(r, 1500));
-      return NextResponse.json({
-        action: transcript.toLowerCase().includes('send') || transcript.toLowerCase().includes('transfer') ? 'transfer' : 'unknown',
-        amount: 5000,
-        recipient: 'Damilola'
-      });
+      console.error("GEMINI_API_KEY missing - Real-time Voice AI disabled.");
+      return NextResponse.json({ action: 'unknown', error: 'No API Key' }, { status: 401 });
     }
 
     // Direct Gemini integration
