@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, X, Fingerprint, CheckCircle2, ShieldCheck, BrainCircuit, XCircle } from 'lucide-react';
+import { Mic, X, Fingerprint, CheckCircle2, ShieldCheck, BrainCircuit, XCircle, ArrowRightLeft, Wallet, Command } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface VoiceBankingProps {
@@ -101,7 +101,7 @@ export default function VoiceBankingModal({ isOpen, onClose }: VoiceBankingProps
       
       if (data && data.action === 'transfer') {
         setIntent(data);
-        setStep(3); // Wait, go to biometric verify
+        setStep(3); // Biometric verify
         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100]);
         
         setTimeout(() => {
@@ -109,10 +109,22 @@ export default function VoiceBankingModal({ isOpen, onClose }: VoiceBankingProps
           confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#00d27b', '#6366f1', '#ffffff'] });
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200, 100, 300, 100, 300]);
         }, 3000); // 3 sec biometric scan delay
+      } else if (text.toLowerCase().includes('balance')) {
+        setIntent({ action: 'balance' });
+        setStep(5); // Show Balance
+      } else if (text.toLowerCase().includes('history') || text.toLowerCase().includes('transactions')) {
+         setIntent({ action: 'history' });
+         setStep(6);
       } else {
         setStep(-1);
       }
     } catch (e) {
+      // Fallback local intent matching
+      if (text.toLowerCase().includes('balance')) {
+         setIntent({ action: 'balance' });
+         setStep(5);
+         return;
+      }
       setStep(-1);
     }
   };
@@ -120,95 +132,154 @@ export default function VoiceBankingModal({ isOpen, onClose }: VoiceBankingProps
   return (
     <AnimatePresence>
       {isOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(5, 5, 10, 0.95)', backdropFilter: 'blur(20px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px'
-        }}>
+        <>
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 50 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="glass"
-            style={{ 
-              width: '100%', maxWidth: '400px', padding: '2.5rem', 
-              border: '1px solid var(--primary)', textAlign: 'center', position: 'relative',
-              boxShadow: '0 20px 50px rgba(0, 210, 123, 0.2)'
-            }}
-          >
-            <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, color: 'var(--text-muted)', background: 'transparent', border: 'none' }}><X size={24}/></button>
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(4px)', zIndex: 999 }}
+          />
 
-            {step === 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ padding: '20px 0' }}>
-                <BrainCircuit size={48} color="#6366f1" style={{ margin: '0 auto 1.5rem', animation: 'pulse 1.5s infinite' }} />
-                <h2 style={{ fontSize: '1.2rem', fontWeight: '600' }}>Initializing Cortex Agent</h2>
-              </motion.div>
-            )}
+          <div style={{
+            position: 'fixed', bottom: '40px', left: '0', right: '0',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 1000, padding: '20px', pointerEvents: 'none'
+          }}>
+            <motion.div
+              layoutId="voice-assistant"
+              initial={{ y: 150, opacity: 0, scale: 0.9, borderRadius: '40px' }}
+              animate={{ y: 0, opacity: 1, scale: 1, borderRadius: '30px' }}
+              exit={{ y: 150, opacity: 0, scale: 0.8 }}
+              transition={{ type: 'spring', bounce: 0.35 }}
+              style={{
+                width: '100%', maxWidth: '380px', padding: '2rem',
+                background: 'rgba(20, 20, 25, 0.85)', backdropFilter: 'blur(25px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)', textAlign: 'center',
+                boxShadow: '0 30px 60px rgba(0, 0, 0, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.05)',
+                pointerEvents: 'auto', position: 'relative', overflow: 'hidden'
+              }}
+            >
+              {/* Dynamic Aura Gradient */}
+              <motion.div
+                animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                transition={{ duration: 5, ease: 'linear', repeat: Infinity }}
+                style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: '4px',
+                  background: 'linear-gradient(90deg, #6366f1, #00d27b, #c084fc, #6366f1)',
+                  backgroundSize: '300% 300%'
+                }}
+              />
 
-            {step === 1 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div style={{ position: 'relative', margin: '0 auto 2rem', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(0, 210, 123, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <motion.div animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0.1, 0.5] }} transition={{ repeat: Infinity, duration: 2 }} style={{ position: 'absolute', inset: -20, background: 'var(--primary)', borderRadius: '50%', zIndex: 0 }} />
-                  <Mic size={40} color="var(--primary)" style={{ zIndex: 1 }} />
-                </div>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>I'm Listening</h2>
-                <div style={{ marginTop: '16px', minHeight: '60px' }}>
-                   <p id="voice-transcript" style={{ color: 'white', fontSize: '1.2rem', fontStyle: 'italic' }}>
-                     {transcript || "Speak your command..."}
-                   </p>
-                </div>
-              </motion.div>
-            )}
+              <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, color: 'rgba(255,255,255,0.4)', background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
 
-            {step === 2 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <BrainCircuit size={50} color="#c084fc" style={{ margin: '0 auto 2rem', animation: 'spin 3s linear infinite' }} />
-                <h2 style={{ fontSize: '1.4rem', fontWeight: '800' }}>Gemini AI is Parsing</h2>
-                <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>Extracting banking intent...</p>
-                <div style={{ marginTop: '1.5rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', fontStyle: 'italic', fontSize: '14px' }}>
-                  "{transcript}"
-                </div>
-              </motion.div>
-            )}
-
-            {step === 3 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div style={{ margin: '0 auto 2rem', width: '90px', height: '90px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(99, 102, 241, 0.05)' }}>
-                  <motion.div animate={{ rotateY: 180 }} transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}>
-                    <Fingerprint size={50} color="#6366f1" />
+              <div style={{ minHeight: '180px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                {step === 0 && (
+                  <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                      <BrainCircuit size={32} color="#6366f1" style={{ animation: 'bounce 2s infinite' }} />
+                    </div>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>Waking Assistant...</h2>
                   </motion.div>
-                </div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: '800' }}>Biometric Verification</h2>
-                <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '14px' }}>Securing execution logic for '{intent?.action}' command...</p>
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} style={{ marginTop: '1.5rem', border: '1px solid rgba(0, 210, 123, 0.3)', padding: '12px', borderRadius: '12px', color: 'var(--primary)', fontSize: '14px', fontWeight: 'bold' }}>
-                  <ShieldCheck size={18} style={{ display: 'inline', verticalAlign: 'sub', marginRight: '6px' }}/> John Doe Recognized
-                </motion.div>
-              </motion.div>
-            )}
+                )}
 
-            {step === 4 && (
-              <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-                <div style={{ margin: '0 auto 2rem', width: '100px', height: '100px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'black', boxShadow: '0 0 50px var(--primary-glow)' }}>
-                  <CheckCircle2 size={60} />
-                </div>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: '900' }}>Transfer Complete</h2>
-                <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '15px' }}>
-                  ₦{intent?.amount?.toLocaleString() || 5000} sent securely to {intent?.recipient || 'Damilola'}.
-                </p>
-                <button onClick={onClose} style={{ marginTop: '2.5rem', width: '100%', padding: '16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: 'white', fontWeight: '800' }}>Dismiss</button>
-              </motion.div>
-            )}
+                {step === 1 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                    {/* Siri-like Orb Wave */}
+                    <div style={{ position: 'relative', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                      {[1, 2, 3].map((i) => (
+                         <motion.div key={i} animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }} transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.2 }}
+                            style={{ position: 'absolute', width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #00d27b)', filter: 'blur(10px)', zIndex: 0 }} />
+                      ))}
+                      <div style={{ zIndex: 1, width: '56px', height: '56px', borderRadius: '50%', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.1)' }}>
+                        <Mic size={24} color="white" />
+                      </div>
+                    </div>
+                    <div style={{ minHeight: '40px', padding: '0 10px' }}>
+                       <p id="voice-transcript" style={{ color: 'white', fontSize: '1.2rem', fontWeight: '600', letterSpacing: '-0.5px' }}>
+                         {transcript || "Listening..."}
+                       </p>
+                    </div>
+                  </motion.div>
+                )}
 
-            {step === -1 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <XCircle size={60} color="#ef4444" style={{ margin: '0 auto 2rem' }} />
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>Command Unrecognized</h2>
-                <p style={{ color: 'var(--text-muted)', marginTop: '8px' }}>Gemini could not parse a valid banking intent.</p>
-                <button onClick={onClose} style={{ marginTop: '2rem', width: '100%', padding: '14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '12px', color: 'white' }}>Close</button>
-              </motion.div>
-            )}
+                {step === 2 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                    <div style={{ position: 'relative', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+                      <BrainCircuit size={40} color="#c084fc" style={{ animation: 'spin 4s linear infinite' }} />
+                    </div>
+                    <h2 style={{ fontSize: '1rem', fontWeight: '700', color: 'rgba(255,255,255,0.7)' }}>Analyzing Intent...</h2>
+                    <div style={{ marginTop: '1rem', background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+                      "{transcript}"
+                    </div>
+                  </motion.div>
+                )}
 
-          </motion.div>
-        </div>
+                {step === 3 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                    <div style={{ width: '70px', height: '70px', margin: '0 auto 1rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(99,102,241,0) 100%)', border: '1px solid rgba(99,102,241,0.5)' }}>
+                      <motion.div animate={{ rotateY: 180 }} transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}>
+                        <Fingerprint size={36} color="#6366f1" />
+                      </motion.div>
+                    </div>
+                    <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'white' }}>Authorizing Transfer</h2>
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} style={{ marginTop: '1rem', background: 'rgba(0, 210, 123, 0.1)', padding: '8px 16px', borderRadius: '20px', color: '#00d27b', fontSize: '12px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <ShieldCheck size={16} /> Identity Confirmed
+                    </motion.div>
+                  </motion.div>
+                )}
+
+                {step === 4 && (
+                  <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} style={{ width: '100%' }}>
+                    <div style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', borderRadius: '50%', background: '#00d27b', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'black', boxShadow: '0 0 30px rgba(0,210,123,0.4)' }}>
+                      <CheckCircle2 size={40} />
+                    </div>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: '800', color: 'white', marginBottom: '8px' }}>Sent Successfully</h2>
+                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', fontWeight: '500' }}>
+                      ₦{intent?.amount?.toLocaleString() || 5000} to {intent?.recipient || 'Damilola'}.
+                    </p>
+                  </motion.div>
+                )}
+
+                {step === 5 && (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ width: '100%' }}>
+                    <div style={{ width: '64px', height: '64px', margin: '0 auto 1rem', borderRadius: '50%', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Wallet size={32} color="#6366f1" />
+                    </div>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', textTransform: 'uppercase', fontWeight: '800', letterSpacing: '1px' }}>Current Balance</p>
+                    <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white', marginTop: '4px', letterSpacing: '-1px' }}>₦125,430</h2>
+                  </motion.div>
+                )}
+
+                {step === 6 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}>
+                       <Command size={20} color="var(--primary)" />
+                       <h2 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>Recent Transactions</h2>
+                     </div>
+                     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '12px', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                           <span style={{ fontSize: '13px', color: 'white' }}>AirSend Damilola</span>
+                           <span style={{ fontSize: '13px', color: 'white', fontWeight: '700' }}>-₦5,000</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                           <span style={{ fontSize: '13px', color: 'white' }}>GTBank Funding</span>
+                           <span style={{ fontSize: '13px', color: '#00d27b', fontWeight: '700' }}>+₦50,000</span>
+                        </div>
+                     </div>
+                  </motion.div>
+                )}
+
+                {step === -1 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                    <XCircle size={48} color="#ef4444" style={{ margin: '0 auto 1rem' }} />
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'white' }}>Not Understood</h2>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: '8px', fontSize: '13px' }}>Try saying "Send 5000 to David" or "Check my balance".</p>
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </>
       )}
     </AnimatePresence>
   );
