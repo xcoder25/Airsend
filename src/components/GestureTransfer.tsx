@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Coins, AlertCircle } from 'lucide-react';
+import { User, AlertCircle, Zap } from 'lucide-react';
 import { FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
 
 interface GestureTransferProps {
@@ -11,15 +11,60 @@ interface GestureTransferProps {
   onComplete: () => void;
 }
 
+// Orbiting particle trail for the transfer orb
+function OrbParticle({ index, total }: { index: number; total: number }) {
+  const angle = (index / total) * 360;
+  return (
+    <motion.div
+      animate={{ rotate: 360 }}
+      transition={{ duration: 2 + index * 0.3, repeat: Infinity, ease: 'linear' }}
+      style={{
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        top: 0,
+        left: 0,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          width: 5,
+          height: 5,
+          borderRadius: '50%',
+          background: index % 2 === 0 ? '#818cf8' : '#34d399',
+          boxShadow: `0 0 8px ${index % 2 === 0 ? '#818cf8' : '#34d399'}`,
+          top: '0%',
+          left: '50%',
+          marginLeft: -2.5,
+          transform: `rotate(${angle}deg) translateY(-32px)`,
+        }}
+      />
+    </motion.div>
+  );
+}
+
 export default function GestureTransfer({ recipient, amount, onComplete }: GestureTransferProps) {
   const [isThrown, setIsThrown] = useState(false);
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [gestureStatus, setGestureStatus] = useState('Initializing Model...');
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const recognizerRef = useRef<GestureRecognizer | null>(null);
   const requestRef = useRef<number | null>(null);
-  
+
+  const speak = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 1.0;
+    utt.pitch = 1.05;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.name.includes('Google') && v.lang === 'en-US') || voices.find(v => v.lang === 'en-US');
+    if (preferred) utt.voice = preferred;
+    window.speechSynthesis.speak(utt);
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -37,7 +82,7 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
           runningMode: "VIDEO",
           numHands: 1
         });
-        
+
         if (!active) return;
         recognizerRef.current = recognizer;
         setIsModelLoaded(true);
@@ -48,7 +93,8 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
              videoRef.current?.play();
-             setGestureStatus('Show Palm to Trigger');
+             setGestureStatus('Show palm to send funds');
+             speak(`Ready to send ${amount.toLocaleString()} Naira to ${recipient.name}. Open or point your palm upward to trigger the transfer.`);
              detectGesture();
           }
         }
@@ -57,7 +103,7 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
         setGestureStatus('Camera or Model failed to load.');
       }
     }
-    
+
     initCameraAndModel();
 
     return () => {
@@ -73,32 +119,32 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
   let lastVideoTime = -1;
   const detectGesture = () => {
     if (!videoRef.current || !recognizerRef.current || isThrown) return;
-    
+
     const nowInMs = Date.now();
     if (videoRef.current.currentTime !== lastVideoTime) {
       lastVideoTime = videoRef.current.currentTime;
       const results = recognizerRef.current.recognizeForVideo(videoRef.current, nowInMs);
-      
+
       if (results.gestures.length > 0) {
         const categoryName = results.gestures[0][0].categoryName;
-        // Trigger on simple confident gestures available out of the box
         if (categoryName === 'Open_Palm' || categoryName === 'Pointing_Up' || categoryName === 'Thumb_Up') {
            triggerTransfer();
            return;
         }
       }
     }
-    
+
     requestRef.current = requestAnimationFrame(detectGesture);
   };
 
   const triggerTransfer = () => {
-     if (isThrown) return; // Prevent double trigger
+     if (isThrown) return;
      if (typeof navigator !== 'undefined' && navigator.vibrate) {
        navigator.vibrate([100, 50, 100]);
      }
      setIsThrown(true);
-     setGestureStatus('Transfer Triggered!');
+     setGestureStatus('Transfer Launched!');
+     speak(`Sending ${amount.toLocaleString()} Naira to ${recipient.name}. Please wait.`);
      setTimeout(() => {
         onComplete();
      }, 1200);
@@ -106,74 +152,131 @@ export default function GestureTransfer({ recipient, amount, onComplete }: Gestu
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '550px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0' }}>
-      {/* Target Zone (Recipient) */}
-      <motion.div animate={{ scale: isThrown ? [1, 1.3, 1] : [1, 1.05, 1], boxShadow: isThrown ? '0 0 60px var(--primary)' : '0 0 20px rgba(255,255,255,0.05)' }} transition={{ scale: { repeat: isThrown ? 0 : Infinity, duration: 2 } }} style={{ width: '100px', height: '100px', background: 'rgba(255,255,255,0.02)', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--primary)', zIndex: 5, position: 'relative' }}>
+      {/* Recipient Zone */}
+      <motion.div
+        animate={{
+          scale: isThrown ? [1, 1.2, 1] : [1, 1.04, 1],
+          boxShadow: isThrown ? '0 0 60px rgba(99,102,241,0.6)' : '0 0 20px rgba(255,255,255,0.04)'
+        }}
+        transition={{ scale: { repeat: isThrown ? 0 : Infinity, duration: 2.2 } }}
+        style={{
+          width: '100px',
+          height: '100px',
+          background: 'rgba(99,102,241,0.06)',
+          borderRadius: '50%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: '2px solid rgba(99,102,241,0.35)',
+          zIndex: 5,
+          position: 'relative'
+        }}
+      >
         <AnimatePresence>
           {isThrown && (
+            // Sleek launch orb that flies up (no emoji)
             <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: [-30, -50], opacity: [0, 1, 0] }}
-              style={{ position: 'absolute', top: -30, fontSize: '24px' }}
+              initial={{ y: 0, scale: 1, opacity: 1 }}
+              animate={{ y: -320, scale: [1, 0.5, 0.1], opacity: [1, 0.8, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.7, ease: 'circIn' }}
+              style={{
+                position: 'absolute',
+                top: -30,
+                left: '50%',
+                marginLeft: -14,
+                width: 28,
+                height: 28,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #6366f1, #a78bfa)',
+                boxShadow: '0 0 20px rgba(99,102,241,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 20
+              }}
             >
-              💸
+              <Zap size={12} color="white" />
             </motion.div>
           )}
         </AnimatePresence>
-        <div style={{ width: '60px', height: '60px', background: 'var(--primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'black' }}>
-          <User size={32} />
+        <div style={{ width: '56px', height: '56px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <User size={28} />
         </div>
-        <span style={{ fontSize: '12px', marginTop: '8px', fontWeight: '600' }}>{recipient.name}</span>
+        <span style={{ fontSize: '11px', marginTop: '8px', fontWeight: '700', color: '#c7d2fe' }}>{recipient.name}</span>
       </motion.div>
 
-      {/* Throw Instruction */}
+      {/* Instruction */}
       {!isThrown && (
-        <motion.div animate={{ y: [0, -10, 0], opacity: [0.4, 0.8, 0.4] }} transition={{ repeat: Infinity, duration: 2 }} style={{ position: 'absolute', top: '32%', color: 'var(--text-muted)', textAlign: 'center', zIndex: 10 }}>
-          <div style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: '500' }}>Show Palm to Throw ₦{amount.toLocaleString()}</div>
-          <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>↑</motion.div>
+        <motion.div
+          animate={{ y: [0, -8, 0], opacity: [0.5, 0.9, 0.5] }}
+          transition={{ repeat: Infinity, duration: 2.2 }}
+          style={{ position: 'absolute', top: '30%', textAlign: 'center', zIndex: 10 }}
+        >
+          <div style={{ fontSize: '0.85rem', marginBottom: '6px', fontWeight: '700', color: '#a5b4fc' }}>
+            Open palm to send ₦{amount.toLocaleString()}
+          </div>
+          <motion.div animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 1.4 }} style={{ color: '#6366f1', fontSize: '1.1rem' }}>↑</motion.div>
         </motion.div>
       )}
 
       {/* Webcam View */}
-      <div style={{ position: 'relative', width: '260px', height: '300px', marginBottom: '40px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+      <div style={{ position: 'relative', width: '260px', height: '290px', marginBottom: '30px', borderRadius: '20px', overflow: 'hidden', border: '2px solid rgba(99,102,241,0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
         <video ref={videoRef} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-        
-        {/* Loading / Status Overlay */}
+
         {!isModelLoaded && (
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--primary)' }}>
-            <AlertCircle size={32} className="animate-pulse" style={{ animation: 'pulse 2s infinite' }} />
-            <span style={{ fontSize: '12px', fontWeight: 'bold', textAlign: 'center', padding: '0 16px' }}>{gestureStatus}</span>
-          </div>
-        )}
-        
-        {isModelLoaded && !isThrown && (
-          <div style={{ position: 'absolute', bottom: '10px', left: '0', right: '0', textAlign: 'center', fontSize: '12px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '8px 16px', margin: '0 16px', borderRadius: '12px', fontWeight: 'bold' }}>
-            <span style={{ color: 'var(--primary)', marginRight: '6px' }}>●</span> {gestureStatus}
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,6,23,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+              style={{ width: '36px', height: '36px', border: '3px solid rgba(99,102,241,0.3)', borderTopColor: '#6366f1', borderRadius: '50%' }}
+            />
+            <span style={{ fontSize: '11px', color: '#818cf8', fontWeight: '700', textAlign: 'center', padding: '0 16px' }}>{gestureStatus}</span>
           </div>
         )}
 
-        {/* Transfer Animation Overlay */}
+        {isModelLoaded && !isThrown && (
+          <div style={{ position: 'absolute', bottom: '10px', left: '0', right: '0', textAlign: 'center', fontSize: '11px', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: '7px 16px', margin: '0 14px', borderRadius: '12px', fontWeight: '700', color: '#a5b4fc', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366f1', boxShadow: '0 0 6px #6366f1', animation: 'pulse 1s infinite' }} />
+            {gestureStatus}
+          </div>
+        )}
+
+        {/* Transfer Animation Overlay — premium gradient, no emoji */}
         <AnimatePresence>
           {isThrown && (
-             <motion.div initial={{ y: 0, scale: 1, opacity: 1 }} animate={{ y: -400, scale: [1, 0.4, 0.1], opacity: [1, 1, 0], filter: 'blur(2px)' }} transition={{ duration: 0.8, ease: "circIn" }} style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #00d27b 0%, #00a862 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 15 }}>
-               <Coins size={64} color="black" />
+             <motion.div
+               initial={{ y: 0, scale: 1, opacity: 1 }}
+               animate={{ y: -400, scale: [1, 0.4, 0.1], opacity: [1, 1, 0], filter: 'blur(3px)' }}
+               transition={{ duration: 0.85, ease: "circIn" }}
+               style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 40%, #7c3aed 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 15 }}
+             >
+               {/* Orbiting particles — no coins emoji */}
+               <div style={{ position: 'relative', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                 {Array.from({ length: 6 }).map((_, i) => (
+                   <OrbParticle key={i} index={i} total={6} />
+                 ))}
+                 <Zap size={32} color="white" style={{ filter: 'drop-shadow(0 0 12px white)' }} />
+               </div>
              </motion.div>
           )}
         </AnimatePresence>
       </div>
-      
-      {/* Your Avatar at bottom */}
+
+      {/* Sender avatar */}
       <div style={{
         position: 'absolute',
-        bottom: '-90px',
+        bottom: '-80px',
         left: '50%',
         transform: 'translateX(-50%)',
         textAlign: 'center',
-        opacity: 0.7
+        opacity: 0.65
       }}>
-        <div style={{ width: '44px', height: '44px', background: 'var(--surface-secondary)', borderRadius: '50%', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 6px' }}>
-          <User size={20} />
+        <div style={{ width: '40px', height: '40px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 5px' }}>
+          <User size={18} color="#818cf8" />
         </div>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500' }}>You</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>You</span>
       </div>
     </div>
   );

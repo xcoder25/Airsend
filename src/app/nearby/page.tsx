@@ -22,6 +22,7 @@ import confetti from 'canvas-confetti';
 import NearbyRadar from '@/components/Radar';
 import AIShield from '@/components/AIShield';
 import GestureTransfer from '@/components/GestureTransfer';
+import GestureCatch from '@/components/GestureCatch';
 
 function FloatingMoney() {
   const [bills, setBills] = useState<{ id: number; x: number; y: number; rotate: number; duration: number; delay: number }[]>([]);
@@ -65,7 +66,7 @@ function FloatingMoney() {
 
 export default function AirSendDemo() {
   const [role, setRole] = useState<'sender' | 'recipient'>('sender');
-  const [stage, setStage] = useState<'init' | 'scan' | 'request' | 'transfer' | 'waiting' | 'success'>('init');
+  const [stage, setStage] = useState<'init' | 'scan' | 'request' | 'transfer' | 'thrown' | 'waiting' | 'catching' | 'success'>('init');
   const [amount, setAmount] = useState(5000);
   const [recipient, setRecipient] = useState({ name: 'Damilola', risky: true });
   const [showShield, setShowShield] = useState(false);
@@ -107,12 +108,21 @@ export default function AirSendDemo() {
             setStage('request');
             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100, 50, 100]);
           }
+          // When recipient has opened palm and is ready to catch, show AIShield
+          if (data.stage === 'catching_ready' && stage === 'thrown') {
+            showShieldForSender();
+          }
           if (data.stage === 'idle' && stage === 'success') {
             setStage('scan');
           }
         }
         
         if (role === 'recipient') {
+          // Sender started gesture throw — recipient should open palm to catch
+          if (data.stage === 'transferring' && stage === 'waiting') {
+            setStage('catching');
+            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([50, 50, 50]);
+          }
           if (data.stage === 'success' && stage !== 'success') {
             setStage('success');
             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200, 100, 400]);
@@ -148,8 +158,17 @@ export default function AirSendDemo() {
   };
 
   const handleTransferComplete = async () => {
-    setShowShield(true);
+    // Step 1: send 'transferring' so recipient can enter catch mode
     await setServerState('transferring');
+    setStage('thrown');
+  };
+
+  const showShieldForSender = () => {
+    setShowShield(true);
+  };
+
+  const handleRecipientCaught = async () => {
+    await setServerState('catching_ready');
   };
 
   const finalizeTransfer = async () => {
@@ -352,7 +371,30 @@ export default function AirSendDemo() {
             </div>
             <h2 style={{ fontSize: '1.6rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Request Broadcasted</h2>
             <p style={{ color: 'var(--text-muted)', margin: '1rem 0 2rem' }}>Real-time synchronization established. Waiting for John Doe to throw the transfer...</p>
-            
+            <motion.div
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '600' }}
+            >
+              ✋ Get ready to show your palm...
+            </motion.div>
+          </motion.div>
+        )}
+
+        {stage === 'catching' && role === 'recipient' && (
+          <motion.div
+            key="catching"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="glass"
+            style={{ padding: '2rem', width: '90%', maxWidth: '440px', border: '1px solid var(--primary-glow)', boxShadow: '0 20px 60px var(--primary-glow)' }}
+          >
+            <GestureCatch
+              amount={amount}
+              senderName="John Doe"
+              onCaught={handleRecipientCaught}
+            />
           </motion.div>
         )}
 
@@ -409,6 +451,71 @@ export default function AirSendDemo() {
               onComplete={handleTransferComplete} 
             />
           </div>
+        )}
+
+        {stage === 'thrown' && role === 'sender' && (
+          <motion.div
+            key="thrown"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="glass"
+            style={{ padding: '3rem 2rem', textAlign: 'center', width: '90%', maxWidth: '400px', border: '1px solid var(--primary-glow)', boxShadow: '0 20px 50px var(--primary-glow)', position: 'relative', overflow: 'hidden' }}
+          >
+            {/* Raining money in background */}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ y: -40, x: `${10 + i * 12}%`, opacity: 0 }}
+                animate={{ y: 320, opacity: [0, 1, 1, 0] }}
+                transition={{ delay: i * 0.2, duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
+                style={{ position: 'absolute', fontSize: '20px', pointerEvents: 'none', zIndex: 0 }}
+              >
+                💸
+              </motion.div>
+            ))}
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <motion.div
+                animate={{ y: [0, -20, 0], scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 1.2 }}
+                style={{ fontSize: '4rem', marginBottom: '1rem' }}
+              >
+                🚀
+              </motion.div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '900', letterSpacing: '-0.5px', marginBottom: '0.5rem' }}>
+                Money in Flight!
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem', lineHeight: '1.5' }}>
+                <strong style={{ color: 'var(--primary)' }}>{recipient.name}</strong> must open their palm<br/>to catch ₦{amount.toLocaleString()}
+              </p>
+
+              {/* Animated waiting indicator */}
+              <motion.div
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(0,210,123,0.08)',
+                  border: '1px solid var(--primary)',
+                  borderRadius: '100px',
+                  padding: '10px 20px',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  color: 'var(--primary)'
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>🤲</span>
+                Waiting for recipient&apos;s palm...
+              </motion.div>
+
+              <div style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                AI Shield will activate once caught
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {stage === 'success' && (

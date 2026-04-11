@@ -5,6 +5,12 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, TrendingUp, TrendingDown, Clock, Download, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from 'recharts';
+import dynamic from 'next/dynamic';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, getDoc, updateDoc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { useEffect } from 'react';
+
+const PaystackTopUp = dynamic(() => import('@/components/PaystackTopUp'), { ssr: false });
 
 const data = [
   { name: 'Mon', balance: 115000 },
@@ -25,6 +31,33 @@ const transactions = [
 
 export default function FinancePage() {
   const [timeframe, setTimeframe] = useState<'1W' | '1M' | '6M'>('1W');
+  const [topUpAmount, setTopUpAmount] = useState('');
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [balance, setBalance] = useState(125430);
+
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const walletDocRef = useMemoFirebase(() => (user && firestore ? doc(firestore, 'wallets', user.uid) : null), [firestore, user]);
+
+  useEffect(() => {
+    if (walletDocRef) {
+      const unsub = onSnapshot(walletDocRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().balance !== undefined) {
+          setBalance(docSnap.data().balance);
+        }
+      });
+      return () => unsub();
+    }
+  }, [walletDocRef]);
+
+  const onSuccessReturn = () => {
+    setIsTopUpOpen(false);
+    setTopUpAmount('');
+  };
+
+  const onClose = () => {
+    console.log('Paystack modal closed');
+  };
 
   return (
     <div style={{
@@ -47,14 +80,47 @@ export default function FinancePage() {
         </button>
       </header>
 
+      {/* Top Up Modal */}
+      {isTopUpOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)' }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid rgba(255,255,255,0.1)', padding: '24px', borderRadius: '24px', width: '90%', maxWidth: '400px' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '16px' }}>Top Up Wallet (Paystack API)</h3>
+            <div style={{ position: 'relative', marginBottom: '24px' }}>
+              <span style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '24px', fontWeight: '800', color: 'rgba(255,255,255,0.5)' }}>₦</span>
+              <input 
+                type="number"
+                value={topUpAmount}
+                onChange={e => setTopUpAmount(e.target.value)}
+                placeholder="0.00"
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '16px 16px 16px 48px', borderRadius: '16px', fontSize: '24px', color: 'white', fontWeight: '800', outline: 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setIsTopUpOpen(false)} style={{ flex: 1, padding: '14px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', color: 'white', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>Cancel</button>
+              <PaystackTopUp 
+                amount={topUpAmount} 
+                currentBalance={balance} 
+                onSuccessReturn={onSuccessReturn} 
+                onClose={onClose} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Balance Overview */}
       <div style={{ marginBottom: '32px' }}>
         <p style={{ color: 'rgba(255,255,255,0.6)', fontWeight: '600', marginBottom: '8px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Net Worth</p>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
-          <h2 style={{ fontSize: '48px', fontWeight: '900', letterSpacing: '-2px', margin: 0 }}>₦125,430</h2>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00d27b', background: 'rgba(0, 210, 123, 0.1)', padding: '4px 8px', borderRadius: '8px', fontWeight: '700', fontSize: '13px' }}>
-            <TrendingUp size={14} /> +12.5%
-          </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+            <h2 style={{ fontSize: '48px', fontWeight: '900', letterSpacing: '-2px', margin: 0 }}>₦{balance.toLocaleString()}</h2>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00d27b', background: 'rgba(0, 210, 123, 0.1)', padding: '4px 8px', borderRadius: '8px', fontWeight: '700', fontSize: '13px' }}>
+              <TrendingUp size={14} /> +12.5%
+            </span>
+          </div>
+          <button onClick={() => setIsTopUpOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', color: 'black', padding: '10px 16px', borderRadius: '16px', fontWeight: '800', fontSize: '14px', border: 'none', cursor: 'pointer' }}>
+            <Plus size={16} /> Top Up
+          </button>
         </div>
       </div>
 
