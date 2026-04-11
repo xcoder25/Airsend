@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Orbit',
   webDir: 'public',
   server: {
-    url: 'http://10.79.206.183:3000',
-    cleartext: true
+    url: 'https://airsend-two.vercel.app',
+    cleartext: false
   }
 };
 
