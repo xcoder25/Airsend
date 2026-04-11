@@ -15,6 +15,10 @@ export default function BottomNav() {
     { name: 'Me', icon: User, path: '/me' },
   ];
 
+  if (pathname === '/login' || pathname === '/signup' || pathname === '/landing') {
+    return null;
+  }
+
   return (
     <nav style={{
       position: 'fixed',

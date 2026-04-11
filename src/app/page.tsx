@@ -21,6 +21,7 @@ export default function WalletDashboard() {
   const [showNearby, setShowNearby] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const balance = 125430.50;
 
   useEffect(() => {
@@ -28,19 +29,26 @@ export default function WalletDashboard() {
     if (typeof window !== 'undefined') {
       if (localStorage.getItem('orbit_auth') !== 'true') {
         router.push('/login');
+      } else {
+        setIsAuthenticated(true);
       }
     }
   }, [router]);
 
   useEffect(() => {
     // Simulate fintech secure launch (like OPay)
-    if (isLoading) {
+    if (isLoading && isAuthenticated) {
       const timer = setTimeout(() => {
         setIsLoading(false);
-      }, 2500);
+      }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [isLoading]);
+  }, [isLoading, isAuthenticated]);
+
+  if (isAuthenticated === null) {
+      // Prevent flashing of interior before auth status checks completely
+      return <div style={{ minHeight: '100vh', background: 'var(--bg)' }} />;
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('orbit_auth');
@@ -231,6 +239,7 @@ export default function WalletDashboard() {
         )}
       </AnimatePresence>
 
+      {!isLoading && isAuthenticated && (
       <div style={{ padding: '24px 24px 120px 24px', maxWidth: '500px', margin: '0 auto' }}>
         {/* Redesigned Header */}
         <header style={{ 
@@ -444,8 +453,10 @@ export default function WalletDashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Floating Bottom Nav */}
+      {!isLoading && isAuthenticated && (
       <div style={{ 
         position: 'fixed',
         bottom: '24px',
@@ -503,6 +514,7 @@ export default function WalletDashboard() {
           <Filter size={24} />
         </div>
       </div>
+      )}
 
       <VoiceBankingModal isOpen={showVoice} onClose={() => setShowVoice(false)} />
       <NearbyAirSend open={showNearby} onOpenChange={setShowNearby} currentBalance={balance} />
